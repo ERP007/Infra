@@ -1,0 +1,8 @@
+local-secrets/
+node_modules/
+build/
+.gradle/
+out/
+.idea/
+*.iml
+.DS_Store
