@@ -156,17 +156,17 @@ curl http://localhost:18080/keycloak/realms/erp-local/.well-known/openid-configu
 
 ## Internal Calls
 
-로컬 스캐폴드에서는 서비스 간 내부 호출을 검증하기 위해 `/internal/**` endpoint를 추가했다. 실제 서비스 간 호출은 Gateway가 아니라 compose service name을 사용한다.
+로컬 스캐폴드에서는 서비스 간 내부 호출을 검증하기 위해 `/internal/**` endpoint를 추가했다. 내부 호출도 권한/정책을 Gateway에서 통제할 수 있도록 각 서비스는 target service를 직접 호출하지 않고 `gateway-service:8080`을 호출한다.
 
 ```text
-item-service -> http://inventory-service:8080/internal/inventory/health
-inventory-service -> http://item-service:8080/internal/items/health
-procurement-service -> http://inventory-service:8080/internal/inventory/health
-sales-service -> http://inventory-service:8080/internal/inventory/health
-sales-service -> http://procurement-service:8080/internal/procurement/health
+item-service -> http://gateway-service:8080/internal/inventory/health -> inventory-service
+inventory-service -> http://gateway-service:8080/internal/items/health -> item-service
+procurement-service -> http://gateway-service:8080/internal/inventory/health -> inventory-service
+sales-service -> http://gateway-service:8080/internal/inventory/health -> inventory-service
+sales-service -> http://gateway-service:8080/internal/procurement/health -> procurement-service
 ```
 
-Gateway에는 테스트 편의를 위해 `/internal/**` 라우트도 열어 두었다.
+Gateway에는 internal 호출용 `/internal/**` 라우트를 열어 두었다.
 
 ```sh
 curl http://localhost:18080/internal/users/health
@@ -181,7 +181,7 @@ curl http://localhost:18080/api/sales/internal/inventory-health
 curl http://localhost:18080/api/sales/internal/procurement-health
 ```
 
-prod 단계에서는 `/internal/**`을 외부에 그대로 열지 않는다. nginx에서 차단하거나 Gateway에서 service token, mTLS, 내부망 제한 같은 별도 정책을 적용한다.
+prod 단계에서는 외부 사용자가 `/internal/**`을 호출하지 못하게 nginx에서 차단하고, 서비스 간 호출은 Gateway의 internal 권한 필터를 통과하게 한다. 권한 방식은 service token, OAuth2 client credentials, mTLS 중 하나로 정한다.
 
 ## Gateway Path Prefix
 
