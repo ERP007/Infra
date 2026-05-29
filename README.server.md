@@ -56,7 +56,7 @@ infra/server-secrets/cloudflared/<tunnel-uuid>.json
 
 현재 서버는 기존 tunnel `erp007-api`를 사용할 수 있다. compose 내부의 cloudflared 컨테이너에서 실행되므로 ingress service는 `http://nginx:80`을 사용한다.
 
-nginx는 frontend, gateway-service, Keycloak을 직접 분기한다. `/api/**`와 `/internal/**`은 gateway-service로 전달되고, `/keycloak/**`는 Keycloak으로 직접 전달된다.
+nginx는 frontend, gateway-service, Keycloak을 직접 분기한다. `/api/**`는 gateway-service로 전달되고, `/keycloak/**`는 Keycloak으로 직접 전달된다. `/internal/**`은 외부 ingress 경로로 열지 않는다.
 
 ## Run
 
@@ -93,31 +93,19 @@ curl https://api.erp007.xyz/keycloak/realms/erp-local/.well-known/openid-configu
 
 ## Internal Calls
 
-현재 스캐폴드에서는 서비스 간 내부 호출 검증을 위해 `/internal/**` endpoint를 추가했다. 내부 호출도 권한/정책을 Gateway에서 통제할 수 있도록 각 서비스는 target service를 직접 호출하지 않고 `gateway-service:8080`을 호출한다.
+현재 스캐폴드에서는 서비스 간 내부 호출 검증을 위해 각 서비스에 `/internal/**` endpoint를 추가했다. 현재 방향은 화면/API 플로우에서 권한이 검증된 뒤 서비스 내부 로직이 필요한 target service를 compose service name으로 직접 호출하는 방식이다.
 
 ```text
-item-service -> http://gateway-service:8080/internal/inventory/health -> inventory-service
-inventory-service -> http://gateway-service:8080/internal/items/health -> item-service
-procurement-service -> http://gateway-service:8080/internal/inventory/health -> inventory-service
-sales-service -> http://gateway-service:8080/internal/inventory/health -> inventory-service
-sales-service -> http://gateway-service:8080/internal/procurement/health -> procurement-service
+item-service -> http://inventory-service:8080/internal/inventory/health
+inventory-service -> http://item-service:8080/internal/items/health
+procurement-service -> http://inventory-service:8080/internal/inventory/health
+sales-service -> http://inventory-service:8080/internal/inventory/health
+sales-service -> http://procurement-service:8080/internal/procurement/health
 ```
 
-Gateway는 `/internal/**` 요청에 대해 `X-Internal-Service-Token` 헤더를 검사한다. 값은 `server-secrets/*-service.env`의 `INTERNAL_SERVICE_TOKEN`과 같아야 한다. 서비스 컨테이너들은 내부 호출 시 이 헤더를 자동으로 붙인다.
+nginx와 Gateway는 `/internal/**`을 backend service로 라우팅하지 않는다. 외부에서 `https://api.erp007.xyz/internal/...`로 직접 호출하면 `404`가 정상이다.
 
-서버에서 직접 `/internal/**`을 테스트할 때:
-
-```sh
-INTERNAL_SERVICE_TOKEN="$(grep '^INTERNAL_SERVICE_TOKEN=' server-secrets/gateway-service.env | cut -d= -f2-)"
-curl -H "X-Internal-Service-Token: ${INTERNAL_SERVICE_TOKEN}" https://api.erp007.xyz/internal/users/health
-curl -H "X-Internal-Service-Token: ${INTERNAL_SERVICE_TOKEN}" https://api.erp007.xyz/internal/items/health
-curl -H "X-Internal-Service-Token: ${INTERNAL_SERVICE_TOKEN}" https://api.erp007.xyz/internal/inventory/health
-curl -H "X-Internal-Service-Token: ${INTERNAL_SERVICE_TOKEN}" https://api.erp007.xyz/internal/procurement/health
-curl -H "X-Internal-Service-Token: ${INTERNAL_SERVICE_TOKEN}" https://api.erp007.xyz/internal/sales/health
-curl -i https://api.erp007.xyz/internal/users/health
-```
-
-서비스가 Gateway를 거쳐 내부 호출을 수행하는지 확인하는 endpoint:
+서비스가 직접 내부 호출을 수행하는지 확인하는 endpoint:
 
 ```sh
 curl https://api.erp007.xyz/api/items/internal/inventory-health
@@ -127,7 +115,7 @@ curl https://api.erp007.xyz/api/sales/internal/inventory-health
 curl https://api.erp007.xyz/api/sales/internal/procurement-health
 ```
 
-헤더 없이 `/internal/**`을 직접 호출하면 `403`이 정상이다. 현재는 최소 구현으로 shared service token을 사용한다. prod 단계에서는 사용자 JWT 필터와 별도로 `/internal/**` 전용 정책을 강화해야 한다. 후보는 OAuth2 client credentials, mTLS, 서비스별 allowlist, nginx 외부 차단 조합이다.
+이 구조에서는 각 서비스 컨테이너 포트를 host에 열지 않는 것이 중요하다. 운영 단계에서는 외부 요청은 반드시 Cloudflare Tunnel/nginx/Gateway의 `/api/**`로만 들어오게 두고, `/internal/**`은 compose network 내부 service name으로만 접근하게 한다.
 
 ## SSH Through Cloudflare
 

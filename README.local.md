@@ -39,7 +39,6 @@ http://localhost:18080
     -> /api/inventory/**   -> inventory-service:8080
     -> /api/procurement/** -> procurement-service:8080
     -> /api/sales/**       -> sales-service:8080
-    -> /internal/**        -> internal service routes with service token
 ```
 
 PostgreSQL과 Redis는 같은 compose network 안에서 각각 `postgres:5432`, `redis:6379`로 접근한다.
@@ -157,31 +156,19 @@ curl http://localhost:18080/keycloak/realms/erp-local/.well-known/openid-configu
 
 ## Internal Calls
 
-로컬 스캐폴드에서는 서비스 간 내부 호출을 검증하기 위해 `/internal/**` endpoint를 추가했다. 내부 호출도 권한/정책을 Gateway에서 통제할 수 있도록 각 서비스는 target service를 직접 호출하지 않고 `gateway-service:8080`을 호출한다.
+로컬 스캐폴드에서는 서비스 간 내부 호출을 검증하기 위해 각 서비스에 `/internal/**` endpoint를 추가했다. 현재 방향은 화면/API 플로우에서 권한이 검증된 뒤 서비스 내부 로직이 필요한 target service를 compose service name으로 직접 호출하는 방식이다.
 
 ```text
-item-service -> http://gateway-service:8080/internal/inventory/health -> inventory-service
-inventory-service -> http://gateway-service:8080/internal/items/health -> item-service
-procurement-service -> http://gateway-service:8080/internal/inventory/health -> inventory-service
-sales-service -> http://gateway-service:8080/internal/inventory/health -> inventory-service
-sales-service -> http://gateway-service:8080/internal/procurement/health -> procurement-service
+item-service -> http://inventory-service:8080/internal/inventory/health
+inventory-service -> http://item-service:8080/internal/items/health
+procurement-service -> http://inventory-service:8080/internal/inventory/health
+sales-service -> http://inventory-service:8080/internal/inventory/health
+sales-service -> http://procurement-service:8080/internal/procurement/health
 ```
 
-Gateway에는 internal 호출용 `/internal/**` 라우트를 열어 두었고, `X-Internal-Service-Token` 헤더가 `INTERNAL_SERVICE_TOKEN`과 일치해야 통과한다. 서비스 컨테이너들은 같은 `INTERNAL_SERVICE_TOKEN`을 env로 받고 내부 호출 시 이 헤더를 자동으로 붙인다.
+nginx와 Gateway는 `/internal/**`을 backend service로 라우팅하지 않는다. 외부에서 `http://localhost:18080/internal/...`로 직접 호출하면 `404`가 정상이다.
 
-외부에서 `/internal/**`을 헤더 없이 직접 호출하면 `403`이 정상이다.
-
-```sh
-INTERNAL_SERVICE_TOKEN="$(grep '^INTERNAL_SERVICE_TOKEN=' local-secrets/gateway-service.env | cut -d= -f2-)"
-curl -H "X-Internal-Service-Token: ${INTERNAL_SERVICE_TOKEN}" http://localhost:18080/internal/users/health
-curl -H "X-Internal-Service-Token: ${INTERNAL_SERVICE_TOKEN}" http://localhost:18080/internal/items/health
-curl -H "X-Internal-Service-Token: ${INTERNAL_SERVICE_TOKEN}" http://localhost:18080/internal/inventory/health
-curl -H "X-Internal-Service-Token: ${INTERNAL_SERVICE_TOKEN}" http://localhost:18080/internal/procurement/health
-curl -H "X-Internal-Service-Token: ${INTERNAL_SERVICE_TOKEN}" http://localhost:18080/internal/sales/health
-curl -i http://localhost:18080/internal/users/health
-```
-
-서비스가 Gateway를 거쳐 내부 호출을 수행하는지 확인하는 endpoint:
+서비스가 직접 내부 호출을 수행하는지 확인하는 endpoint:
 
 ```sh
 curl http://localhost:18080/api/items/internal/inventory-health
@@ -191,7 +178,7 @@ curl http://localhost:18080/api/sales/internal/inventory-health
 curl http://localhost:18080/api/sales/internal/procurement-health
 ```
 
-현재는 최소 구현으로 shared service token을 사용한다. prod 단계에서는 사용자 JWT 필터와 별도로 `/internal/**` 전용 정책을 강화해야 한다. 후보는 OAuth2 client credentials, mTLS, 서비스별 allowlist, nginx 외부 차단 조합이다.
+이 구조에서는 각 서비스 컨테이너 포트를 host에 열지 않는 것이 중요하다. 운영 단계에서는 외부 요청은 반드시 nginx/Gateway의 `/api/**`로만 들어오게 두고, `/internal/**`은 compose network 내부 service name으로만 접근하게 한다.
 
 ## Gateway Path Prefix
 
