@@ -1,4 +1,5 @@
 local-secrets/
+env/
 node_modules/
 build/
 .gradle/

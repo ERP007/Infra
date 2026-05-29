@@ -2,7 +2,7 @@
 
 이 문서는 운영 배포가 아닌 로컬 개발 환경 실행 절차만 다룬다. Jenkins, GHCR, Cloudflare, production compose 설정은 포함하지 않는다.
 
-현재 service/frontend repo들은 Docker Compose, nginx proxy, Gateway routing, PostgreSQL/Redis 연결을 검증하기 위한 최소 스캐폴드다. 실제 ERP 비즈니스 로직, 인증/JWT, Entity, Repository, 도메인 Service layer는 아직 구현하지 않았다.
+현재 service/frontend repo들은 Docker Compose, nginx proxy, Gateway routing, Keycloak, PostgreSQL/Redis 연결을 검증하기 위한 최소 스캐폴드다. 실제 ERP 비즈니스 로직, 인증/JWT 검증, Entity, Repository, 도메인 Service layer는 아직 구현하지 않았다.
 
 ## Directory Layout
 
@@ -12,7 +12,8 @@
 msa-local/
   infra/
   gateway-service/
-  auth-service/
+  keycloak/
+  user-service/
   item-service/
   inventory-service/
   procurement-service/
@@ -22,7 +23,7 @@ msa-local/
 
 `infra/docker-compose.local.yml`은 sibling repo를 build context 또는 bind mount로 사용한다.
 
-전체 compose 실행은 `gateway-service`, `auth-service`, `item-service`, `inventory-service`, `procurement-service`, `sales-service`, `frontend` repo가 모두 같은 depth에 실제 코드로 준비된 뒤에만 가능하다. repo가 아직 없다면 PostgreSQL과 Redis만 먼저 실행해서 infra 구성을 검증한다.
+전체 compose 실행은 `gateway-service`, `keycloak`, `user-service`, `item-service`, `inventory-service`, `procurement-service`, `sales-service`, `frontend` repo가 모두 같은 depth에 실제 코드로 준비된 뒤에만 가능하다. repo가 아직 없다면 PostgreSQL과 Redis만 먼저 실행해서 infra 구성을 검증한다.
 
 브라우저 요청 흐름은 다음과 같다.
 
@@ -31,8 +32,9 @@ http://localhost:18080
   -> nginx
     -> /api/** -> gateway-service:8080
     -> /**     -> frontend:3000
+    -> /keycloak/** -> keycloak:8080
   -> gateway-service
-    -> /api/auth/**        -> auth-service:8080
+    -> /api/users/**       -> user-service:8080
     -> /api/items/**       -> item-service:8080
     -> /api/inventory/**   -> inventory-service:8080
     -> /api/procurement/** -> procurement-service:8080
@@ -106,7 +108,8 @@ docker compose -f docker-compose.local.yml -p msa-local logs -f
 
 ```sh
 docker compose -f docker-compose.local.yml -p msa-local logs -f gateway-service
-docker compose -f docker-compose.local.yml -p msa-local logs -f auth-service
+docker compose -f docker-compose.local.yml -p msa-local logs -f user-service
+docker compose -f docker-compose.local.yml -p msa-local logs -f keycloak
 ```
 
 ## Stop
@@ -133,9 +136,15 @@ frontend dashboard:
 http://localhost:18080
 ```
 
+Keycloak local console:
+
+```text
+http://localhost:18080/keycloak/
+```
+
 ```sh
 curl http://localhost:18080/health
-curl http://localhost:18080/api/auth/health
+curl http://localhost:18080/api/users/health
 curl http://localhost:18080/api/items/health
 curl http://localhost:18080/api/inventory/health
 curl http://localhost:18080/api/procurement/health
@@ -148,9 +157,9 @@ curl http://localhost:18080/api/sales/health
 
 local 라우팅은 `StripPrefix=1`을 기준으로 한다.
 
-예를 들어 `GET /api/auth/health`는 gateway에서 `/api`만 제거되어 `auth-service:8080/auth/health`로 전달된다. 로컬 스캐폴드의 auth-service endpoint가 `/auth/health`이므로 `StripPrefix=1`이 맞다.
+예를 들어 `GET /api/users/health`는 gateway에서 `/api`만 제거되어 `user-service:8080/users/health`로 전달된다. 로컬 스캐폴드의 user-service endpoint가 `/users/health`이므로 `StripPrefix=1`이 맞다.
 
-다른 서비스도 같은 방식으로 `/items/health`, `/inventory/health`, `/procurement/health`, `/sales/health`를 직접 받는다.
+다른 서비스도 같은 방식으로 `/items/health`, `/inventory/health`, `/procurement/health`, `/sales/health`를 직접 받는다. 인증 서버 역할은 별도 Keycloak 컨테이너가 담당하고, user-service는 사용자 도메인 API를 위한 최소 스캐폴드로 둔다.
 
 ## PostgreSQL Init
 
@@ -165,12 +174,12 @@ docker compose -f docker-compose.local.yml -p msa-local up -d --build postgres
 
 ## Common Issues
 
-- 컨테이너 안에서는 `localhost`가 host machine이 아니라 자기 자신이다. DB/Redis/서비스 접근에는 `postgres`, `redis`, `auth-service` 같은 compose service name을 사용한다.
+- 컨테이너 안에서는 `localhost`가 host machine이 아니라 자기 자신이다. DB/Redis/서비스 접근에는 `postgres`, `redis`, `user-service`, `keycloak` 같은 compose service name을 사용한다.
 - PostgreSQL init script는 volume이 처음 만들어질 때만 실행된다.
 - backend 코드 수정 후에는 해당 service를 다시 빌드해야 한다.
 
 ```sh
-docker compose -f docker-compose.local.yml -p msa-local up -d --build auth-service
+docker compose -f docker-compose.local.yml -p msa-local up -d --build user-service
 ```
 
 - frontend dev server는 컨테이너 안에서 `0.0.0.0:3000`으로 bind되어야 nginx가 `frontend:3000`으로 proxy할 수 있다.

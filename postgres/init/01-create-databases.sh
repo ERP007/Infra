@@ -51,7 +51,7 @@ create_service_database() {
   create_database "$db_name" "$db_user"
 }
 
-create_service_database "$AUTH_DB_NAME" "$AUTH_DB_USER" "$AUTH_DB_PASSWORD"
+create_service_database "$USER_DB_NAME" "$USER_DB_USER" "$USER_DB_PASSWORD"
 create_service_database "$ITEM_DB_NAME" "$ITEM_DB_USER" "$ITEM_DB_PASSWORD"
 create_service_database "$INVENTORY_DB_NAME" "$INVENTORY_DB_USER" "$INVENTORY_DB_PASSWORD"
 create_service_database "$PROCUREMENT_DB_NAME" "$PROCUREMENT_DB_USER" "$PROCUREMENT_DB_PASSWORD"

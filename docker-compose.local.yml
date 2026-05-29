@@ -7,6 +7,7 @@ services:
     depends_on:
       - frontend
       - gateway-service
+      - keycloak
     ports:
       - "18080:80"
     volumes:
@@ -49,7 +50,7 @@ services:
     env_file:
       - ./local-secrets/gateway-service.env
     depends_on:
-      auth-service:
+      user-service:
         condition: service_started
       item-service:
         condition: service_started
@@ -59,15 +60,33 @@ services:
         condition: service_started
       sales-service:
         condition: service_started
+      keycloak:
+        condition: service_started
     networks:
       - msa-local
 
-  auth-service:
-    build:
-      context: ../auth-service
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0.7
     restart: unless-stopped
     env_file:
-      - ./local-secrets/auth-service.env
+      - ./local-secrets/keycloak.env
+    command:
+      - start-dev
+      - --http-port=8080
+      - --http-relative-path=/keycloak
+      - --import-realm
+    volumes:
+      - ../keycloak/import:/opt/keycloak/data/import:ro
+      - keycloak_data:/opt/keycloak/data
+    networks:
+      - msa-local
+
+  user-service:
+    build:
+      context: ../user-service
+    restart: unless-stopped
+    env_file:
+      - ./local-secrets/user-service.env
       - ./local-secrets/redis.env
     depends_on:
       postgres:
@@ -188,3 +207,4 @@ volumes:
   postgres_data:
   redis_data:
   frontend_node_modules:
+  keycloak_data:
