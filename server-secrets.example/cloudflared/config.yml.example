@@ -1,0 +1,11 @@
+tunnel: replace_with_tunnel_uuid
+credentials-file: /etc/cloudflared/replace_with_tunnel_uuid.json
+
+ingress:
+  - hostname: api.erp007.xyz
+    service: http://nginx:80
+
+  - hostname: ssh.erp007.xyz
+    service: ssh://host.docker.internal:22
+
+  - service: http_status:404

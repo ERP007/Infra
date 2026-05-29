@@ -1,4 +1,5 @@
 local-secrets/
+server-secrets/
 env/
 node_modules/
 build/
