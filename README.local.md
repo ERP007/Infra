@@ -149,9 +149,10 @@ curl http://localhost:18080/api/items/health
 curl http://localhost:18080/api/inventory/health
 curl http://localhost:18080/api/procurement/health
 curl http://localhost:18080/api/sales/health
+curl http://localhost:18080/keycloak/realms/erp-local/.well-known/openid-configuration
 ```
 
-`/health`는 nginx가 직접 `nginx ok`를 응답한다. `/api/**` 요청은 gateway-service를 거쳐 각 backend service로 전달된다.
+`/health`는 nginx가 직접 `nginx ok`를 응답한다. `/api/**` 요청은 gateway-service를 거쳐 각 backend service로 전달되고, `/keycloak/**` 요청은 nginx가 Keycloak으로 직접 전달한다.
 
 ## Gateway Path Prefix
 

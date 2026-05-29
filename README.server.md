@@ -5,6 +5,7 @@
 ## Target URLs
 
 - Web/API base URL: `https://api.erp007.xyz`
+- Keycloak URL: `https://api.erp007.xyz/keycloak/`
 - Local nginx binding on server: `127.0.0.1:80`
 - SSH tunnel hostname: `ssh.erp007.xyz`
 
@@ -55,6 +56,8 @@ infra/server-secrets/cloudflared/<tunnel-uuid>.json
 
 현재 서버는 기존 tunnel `erp007-api`를 사용할 수 있다. compose 내부의 cloudflared 컨테이너에서 실행되므로 ingress service는 `http://nginx:80`을 사용한다.
 
+nginx는 frontend, gateway-service, Keycloak을 직접 분기한다. `/api/**`는 gateway-service로 전달되고, `/keycloak/**`는 Keycloak으로 직접 전달된다.
+
 ## Run
 
 ```sh
@@ -73,6 +76,7 @@ curl http://127.0.0.1/api/items/health
 curl http://127.0.0.1/api/inventory/health
 curl http://127.0.0.1/api/procurement/health
 curl http://127.0.0.1/api/sales/health
+curl http://127.0.0.1/keycloak/realms/erp-local/.well-known/openid-configuration
 ```
 
 ## Test Through Cloudflare
@@ -84,6 +88,7 @@ curl https://api.erp007.xyz/api/items/health
 curl https://api.erp007.xyz/api/inventory/health
 curl https://api.erp007.xyz/api/procurement/health
 curl https://api.erp007.xyz/api/sales/health
+curl https://api.erp007.xyz/keycloak/realms/erp-local/.well-known/openid-configuration
 ```
 
 ## SSH Through Cloudflare
@@ -121,4 +126,5 @@ docker compose -f docker-compose.server.yml -p msa-server down -v
 
 - 현재 backend/frontend는 최소 스캐폴드다. 실제 ERP 비즈니스 로직, JWT 검증, Entity, Repository, Service layer는 아직 구현하지 않았다.
 - Gateway는 `StripPrefix=1`을 사용한다. 예: `/api/users/health`는 `/users/health`로 user-service에 전달된다.
+- Keycloak은 Gateway 뒤에 숨기지 않고 nginx/ingress에서 직접 받는다. Gateway JWT 필터는 `/api/**` 업무 API만 대상으로 시작한다.
 - Keycloak은 현재 스캐폴드 검증을 위해 `start-dev`로 실행한다. 운영 전에는 별도 production 설정이 필요하다.
