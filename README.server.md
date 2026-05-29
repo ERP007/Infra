@@ -91,6 +91,35 @@ curl https://api.erp007.xyz/api/sales/health
 curl https://api.erp007.xyz/keycloak/realms/erp-local/.well-known/openid-configuration
 ```
 
+## Internal Calls
+
+현재 스캐폴드에서는 서비스 간 내부 호출 검증을 위해 `/internal/**` endpoint를 추가했다. 실제 서비스 간 호출은 Gateway가 아니라 compose service name으로 직접 호출한다.
+
+```text
+item-service -> http://inventory-service:8080/internal/inventory/health
+inventory-service -> http://item-service:8080/internal/items/health
+procurement-service -> http://inventory-service:8080/internal/inventory/health
+sales-service -> http://inventory-service:8080/internal/inventory/health
+sales-service -> http://procurement-service:8080/internal/procurement/health
+```
+
+서버 테스트용 curl:
+
+```sh
+curl https://api.erp007.xyz/internal/users/health
+curl https://api.erp007.xyz/internal/items/health
+curl https://api.erp007.xyz/internal/inventory/health
+curl https://api.erp007.xyz/internal/procurement/health
+curl https://api.erp007.xyz/internal/sales/health
+curl https://api.erp007.xyz/api/items/internal/inventory-health
+curl https://api.erp007.xyz/api/inventory/internal/items-health
+curl https://api.erp007.xyz/api/procurement/internal/inventory-health
+curl https://api.erp007.xyz/api/sales/internal/inventory-health
+curl https://api.erp007.xyz/api/sales/internal/procurement-health
+```
+
+prod 단계에서는 `/internal/**`을 외부에 그대로 열지 않는다. nginx에서 차단하거나 Gateway에서 service token, mTLS, 내부망 제한 같은 별도 정책을 적용한다.
+
 ## SSH Through Cloudflare
 
 Cloudflare Access SSH를 사용할 경우 로컬 Mac의 `~/.ssh/config`에 다음 alias를 둔다.

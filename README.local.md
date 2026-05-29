@@ -154,6 +154,35 @@ curl http://localhost:18080/keycloak/realms/erp-local/.well-known/openid-configu
 
 `/health`는 nginx가 직접 `nginx ok`를 응답한다. `/api/**` 요청은 gateway-service를 거쳐 각 backend service로 전달되고, `/keycloak/**` 요청은 nginx가 Keycloak으로 직접 전달한다.
 
+## Internal Calls
+
+로컬 스캐폴드에서는 서비스 간 내부 호출을 검증하기 위해 `/internal/**` endpoint를 추가했다. 실제 서비스 간 호출은 Gateway가 아니라 compose service name을 사용한다.
+
+```text
+item-service -> http://inventory-service:8080/internal/inventory/health
+inventory-service -> http://item-service:8080/internal/items/health
+procurement-service -> http://inventory-service:8080/internal/inventory/health
+sales-service -> http://inventory-service:8080/internal/inventory/health
+sales-service -> http://procurement-service:8080/internal/procurement/health
+```
+
+Gateway에는 테스트 편의를 위해 `/internal/**` 라우트도 열어 두었다.
+
+```sh
+curl http://localhost:18080/internal/users/health
+curl http://localhost:18080/internal/items/health
+curl http://localhost:18080/internal/inventory/health
+curl http://localhost:18080/internal/procurement/health
+curl http://localhost:18080/internal/sales/health
+curl http://localhost:18080/api/items/internal/inventory-health
+curl http://localhost:18080/api/inventory/internal/items-health
+curl http://localhost:18080/api/procurement/internal/inventory-health
+curl http://localhost:18080/api/sales/internal/inventory-health
+curl http://localhost:18080/api/sales/internal/procurement-health
+```
+
+prod 단계에서는 `/internal/**`을 외부에 그대로 열지 않는다. nginx에서 차단하거나 Gateway에서 service token, mTLS, 내부망 제한 같은 별도 정책을 적용한다.
+
 ## Gateway Path Prefix
 
 local 라우팅은 `StripPrefix=1`을 기준으로 한다.
