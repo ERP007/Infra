@@ -5,6 +5,9 @@ ingress:
   - hostname: api.erp007.xyz
     service: http://nginx:80
 
+  - hostname: jenkins.erp007.xyz
+    service: http://erp-jenkins:8080
+
   - hostname: ssh.erp007.xyz
     service: ssh://host.docker.internal:22
 
