@@ -15,7 +15,7 @@ pipeline {
     }
 
     stages {
-        stage('Sync infra checkout') {
+        stage('Sync deployment files') {
             when { branch 'main' }
             steps {
                 withCredentials([usernamePassword(credentialsId: 'github-kt-jenkins-pat', usernameVariable: 'GITHUB_USERNAME', passwordVariable: 'GITHUB_TOKEN')]) {
@@ -24,8 +24,13 @@ pipeline {
                         cd "$DEPLOY_DIR"
                         auth_header="$(printf '%s:%s' "$GITHUB_USERNAME" "$GITHUB_TOKEN" | base64 | tr -d '\\n')"
                         git -c "http.extraHeader=Authorization: Basic ${auth_header}" fetch origin main
-                        git checkout main
-                        git -c "http.extraHeader=Authorization: Basic ${auth_header}" pull --ff-only origin main
+                        git checkout FETCH_HEAD -- \
+                            Jenkinsfile \
+                            README.server.md \
+                            docker-compose.server.yml \
+                            nginx/nginx.server.conf \
+                            server-images.env \
+                            server-secrets.example/cloudflared/config.yml.example
                     '''
                 }
             }
