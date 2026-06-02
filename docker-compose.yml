@@ -47,7 +47,7 @@ services:
   gateway-service:
     build:
       context: ../gateway-service
-      dockerfile: Dockerfile
+      dockerfile: ../infra/docker/server-service.Dockerfile
     image: erp007/gateway-service:server
     restart: unless-stopped
     env_file:
@@ -70,7 +70,7 @@ services:
   user-service:
     build:
       context: ../user-service
-      dockerfile: Dockerfile
+      dockerfile: ../infra/docker/server-service.Dockerfile
     image: erp007/user-service:server
     restart: unless-stopped
     env_file:
@@ -88,7 +88,7 @@ services:
   item-service:
     build:
       context: ../item-service
-      dockerfile: Dockerfile
+      dockerfile: ../infra/docker/server-service.Dockerfile
     image: erp007/item-service:server
     restart: unless-stopped
     env_file:
@@ -106,7 +106,7 @@ services:
   inventory-service:
     build:
       context: ../inventory-service
-      dockerfile: Dockerfile
+      dockerfile: ../infra/docker/server-service.Dockerfile
     image: erp007/inventory-service:server
     restart: unless-stopped
     env_file:
@@ -124,7 +124,7 @@ services:
   procurement-service:
     build:
       context: ../procurement-service
-      dockerfile: Dockerfile
+      dockerfile: ../infra/docker/server-service.Dockerfile
     image: erp007/procurement-service:server
     restart: unless-stopped
     env_file:
@@ -142,7 +142,7 @@ services:
   sales-service:
     build:
       context: ../sales-service
-      dockerfile: Dockerfile
+      dockerfile: ../infra/docker/server-service.Dockerfile
     image: erp007/sales-service:server
     restart: unless-stopped
     env_file:
