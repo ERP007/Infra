@@ -36,6 +36,7 @@ pipeline {
                 sh '''
                     set -eu
                     cd "$DEPLOY_DIR"
+                    ./scripts/init-server-secrets.sh
                     docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" config >/tmp/msa-server-compose.yml
                     docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" up -d --build --remove-orphans
                 '''

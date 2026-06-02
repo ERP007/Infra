@@ -1,5 +1,16 @@
 name: msa-server
 
+x-service-postgres: &service-postgres
+  image: postgres:16-alpine
+  restart: unless-stopped
+  healthcheck:
+    test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+    interval: 10s
+    timeout: 5s
+    retries: 10
+  networks:
+    - data
+
 services:
   cloudflared:
     image: cloudflare/cloudflared:2026.5.1
@@ -66,7 +77,7 @@ services:
       - ./server-secrets/user-service.env
       - ./server-secrets/redis.env
     depends_on:
-      postgres:
+      user-postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -84,7 +95,7 @@ services:
       - ./server-secrets/item-service.env
       - ./server-secrets/redis.env
     depends_on:
-      postgres:
+      item-postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -102,7 +113,7 @@ services:
       - ./server-secrets/inventory-service.env
       - ./server-secrets/redis.env
     depends_on:
-      postgres:
+      inventory-postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -120,7 +131,7 @@ services:
       - ./server-secrets/procurement-service.env
       - ./server-secrets/redis.env
     depends_on:
-      postgres:
+      procurement-postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -138,7 +149,7 @@ services:
       - ./server-secrets/sales-service.env
       - ./server-secrets/redis.env
     depends_on:
-      postgres:
+      sales-postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -146,23 +157,50 @@ services:
       - service
       - data
 
-  postgres:
-    image: postgres:16-alpine
-    restart: unless-stopped
+  user-postgres:
+    <<: *service-postgres
     env_file:
-      - ./server-secrets/postgres.env
+      - ./server-secrets/user-postgres.env
+    ports:
+      - "127.0.0.1:15431:5432"
+    volumes:
+      - user_postgres_data:/var/lib/postgresql/data
+
+  item-postgres:
+    <<: *service-postgres
+    env_file:
+      - ./server-secrets/item-postgres.env
     ports:
       - "127.0.0.1:15432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./postgres/init:/docker-entrypoint-initdb.d:ro
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-    networks:
-      - data
+      - item_postgres_data:/var/lib/postgresql/data
+
+  inventory-postgres:
+    <<: *service-postgres
+    env_file:
+      - ./server-secrets/inventory-postgres.env
+    ports:
+      - "127.0.0.1:15433:5432"
+    volumes:
+      - inventory_postgres_data:/var/lib/postgresql/data
+
+  procurement-postgres:
+    <<: *service-postgres
+    env_file:
+      - ./server-secrets/procurement-postgres.env
+    ports:
+      - "127.0.0.1:15434:5432"
+    volumes:
+      - procurement_postgres_data:/var/lib/postgresql/data
+
+  sales-postgres:
+    <<: *service-postgres
+    env_file:
+      - ./server-secrets/sales-postgres.env
+    ports:
+      - "127.0.0.1:15435:5432"
+    volumes:
+      - sales_postgres_data:/var/lib/postgresql/data
 
   redis:
     image: redis:7-alpine
@@ -202,5 +240,9 @@ networks:
     name: msa-data
 
 volumes:
-  postgres_data:
+  user_postgres_data:
+  item_postgres_data:
+  inventory_postgres_data:
+  procurement_postgres_data:
+  sales_postgres_data:
   redis_data:
