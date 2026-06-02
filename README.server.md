@@ -13,11 +13,16 @@
 
 ## Directory Layout
 
-서버에서도 `infra`와 각 repo가 같은 depth에 있어야 한다.
+서버에서도 `infra`와 각 서비스 repo가 같은 depth에 있어야 한다. `infra`는 얇은 deploy repo로 유지하고, 실제 애플리케이션 코드는 각 서비스 repo에서 관리한다.
 
 ```text
 msa-server/
   infra/
+    docker-compose.yml
+    Jenkinsfile
+    nginx/
+    postgres/
+    server-secrets/
   gateway-service/
   user-service/
   item-service/
@@ -79,29 +84,45 @@ infra/server-secrets/cloudflared/<tunnel-uuid>.json
 
 nginx는 backend API만 분기한다. `/api/**`는 gateway-service로 전달되고, `/internal/**`은 외부 ingress 경로로 열지 않는다. `/`는 frontend 서버가 아니므로 404를 반환한다.
 
-## Image Versions
+## Deploy Model
 
-운영 서버는 backend 이미지를 GHCR에서 pull한다. `server-images.env`가 배포 중인 이미지 태그의 source of truth다.
+현재 운영 배포 기준은 GHCR image pull이 아니라 서버 직접 build다.
 
-```env
-REGISTRY=ghcr.io/kthtesttest
-GATEWAY_SERVICE_TAG=sha-xxx
-USER_SERVICE_TAG=sha-xxx
-ITEM_SERVICE_TAG=sha-xxx
-INVENTORY_SERVICE_TAG=sha-xxx
-PROCUREMENT_SERVICE_TAG=sha-xxx
-SALES_SERVICE_TAG=sha-xxx
+1. 각 서비스 repo에 push되면 해당 서비스 Jenkins job이 돈다.
+2. Jenkins가 서버의 `infra`와 해당 서비스 repo를 `git pull --ff-only`로 갱신한다.
+3. Jenkins가 `infra/docker-compose.yml` 기준으로 해당 서비스만 `docker compose up -d --build --no-deps <service>`로 재빌드/재기동한다.
+4. `infra` repo에 push되면 infra Jenkins job이 전체 compose를 `up -d --build --remove-orphans`로 반영한다.
+
+이 방식에서는 `server-images.env`를 배포 source of truth로 쓰지 않는다. 과거 GHCR 배포 파일은 참고용으로만 남아 있을 수 있다.
+
+## Database Model
+
+1차 운영 기준은 PostgreSQL 컨테이너 1개 안에서 서비스별 DB와 계정을 분리하는 구조다.
+
+```text
+postgres
+  user_db / user_user
+  item_db / item_user
+  inventory_db / inventory_user
+  procurement_db / procurement_user
+  sales_db / sales_user
 ```
 
-서비스 repo Jenkins pipeline이 이미지를 push한 뒤 이 파일의 해당 태그를 갱신하고, infra pipeline이 서버에서 `docker compose pull/up`을 수행한다.
+DB와 계정은 `postgres/init/01-create-databases.sh`가 생성한다. 각 서비스는 자기 `server-secrets/<service>.env`에 적힌 DB URL, username, password만 바라본다.
+
+서비스별 PostgreSQL 컨테이너 5개로 완전히 분리하는 것은 트래픽/장애 격리 필요가 커졌을 때 다음 단계로 진행한다. 그때는 compose에 `item-postgres`, `sales-postgres` 같은 서비스를 추가하고, `server-secrets`도 서비스 DB별 env로 나눈다.
+
+## Team Workflow
+
+팀원은 서버 PostgreSQL을 공유하지 않는다. 각자 로컬에서 `docker-compose.local.yml`과 `local-secrets/`를 사용해 PostgreSQL/Redis를 띄워 개발한다. 서버의 `server-secrets/`는 운영 전용이며 Git에 올리지 않는다.
 
 ## Run
 
 ```sh
 cd infra
 ./scripts/init-server-secrets.sh
-docker compose -f docker-compose.server.yml -p msa-server config
-docker compose --env-file server-images.env -f docker-compose.server.yml -p msa-server up -d --remove-orphans
+docker compose -f docker-compose.yml -p msa-server config
+docker compose -f docker-compose.yml -p msa-server up -d --build --remove-orphans
 ```
 
 ## Test On Server
@@ -146,13 +167,13 @@ ssh erp-server
 ## Stop
 
 ```sh
-docker compose -f docker-compose.server.yml -p msa-server down
+docker compose -f docker-compose.yml -p msa-server down
 ```
 
 DB/Redis volume까지 삭제:
 
 ```sh
-docker compose -f docker-compose.server.yml -p msa-server down -v
+docker compose -f docker-compose.yml -p msa-server down -v
 ```
 
 `down -v`는 PostgreSQL, Redis 데이터를 삭제한다. 필요한 경우에만 실행한다.
