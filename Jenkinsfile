@@ -1,6 +1,10 @@
 pipeline {
     agent any
 
+    parameters {
+        booleanParam(name: 'REBUILD_ALL', defaultValue: false, description: 'Rebuild all service images during infra deploy')
+    }
+
     options {
         timestamps()
         disableConcurrentBuilds()
@@ -38,7 +42,11 @@ pipeline {
                     cd "$DEPLOY_DIR"
                     ./scripts/init-server-secrets.sh
                     docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" config >/tmp/msa-server-compose.yml
-                    docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" up -d --build --remove-orphans
+                    if [ "${REBUILD_ALL:-false}" = "true" ]; then
+                        docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" up -d --build --remove-orphans
+                    else
+                        docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" up -d --remove-orphans
+                    fi
                 '''
             }
         }
