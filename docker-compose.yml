@@ -120,7 +120,11 @@ services:
     networks:
       - service
       - data
-
+    environment:
+      - OPENAPI_SERVER_URL=https://api.erp007.xyz/api
+      - SPRINGDOC_SWAGGERUI_CONFIGURL=/api/inventory/v3/api-docs/swagger-config
+      - SPRINGDOC_SWAGGERUI_URL=/api/inventory/v3/api-docs
+      - SPRING_PROFILES_ACTIVE=local
   procurement-service:
     build:
       context: ../procurement-service
