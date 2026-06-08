@@ -90,7 +90,7 @@ infra/server-secrets/cloudflared/config.yml
 infra/server-secrets/cloudflared/<tunnel-uuid>.json
 ```
 
-현재 서버는 기존 tunnel `erp007-api`를 사용할 수 있다. compose 내부의 cloudflared 컨테이너에서 실행되므로 API ingress service는 `http://nginx:80`, Jenkins ingress service는 `http://erp-jenkins:8080`을 사용한다.
+현재 서버는 기존 tunnel `erp007-api`를 사용할 수 있다. compose 내부의 cloudflared 컨테이너에서 실행되므로 API ingress service는 `http://nginx:80`, Jenkins ingress service는 `http://erp-jenkins:8080`을 사용한다. Keycloak을 별도 compose로 실행할 때는 Keycloak 컨테이너를 external network `msa-edge-app`에 붙이고 auth ingress service를 `http://keycloak:8080`으로 둔다.
 
 nginx는 backend API만 분기한다. `/api/**`는 gateway-service로 전달되고, `/internal/**`은 외부 ingress 경로로 열지 않는다. `/`는 frontend 서버가 아니므로 404를 반환한다.
 
@@ -204,4 +204,4 @@ docker compose -f docker-compose.yml -p msa-server down -v
 
 - 현재 backend는 최소 스캐폴드다. 실제 ERP 비즈니스 로직, 사용자 JWT 검증, Entity, Repository, Service layer는 아직 구현하지 않았다.
 - Gateway는 `StripPrefix=1`을 사용한다. 예: `/api/users/health`는 `/users/health`로 user-service에 전달된다.
-- Keycloak은 이 서버 구성에서 제외한다. 인증 서버는 나중에 `auth.erp007.xyz` 기준으로 별도 설계한다.
+- Keycloak은 별도 `erp007/keycloak` repo의 compose로 실행하고, `auth.erp007.xyz` 기준으로 Cloudflare Tunnel에서 라우팅한다.
