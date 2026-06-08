@@ -39,19 +39,31 @@ docker exec erp-jenkins cat /var/jenkins_home/secrets/initialAdminPassword
 
 ## Required Credentials
 
-Create these Jenkins username/password credentials before enabling pipelines:
+Create these Jenkins credentials before enabling pipelines:
 
 ```text
 github-kt-jenkins-pat
   username: GitHub username
   password: GitHub PAT with repo, read:org, admin:repo_hook
 
-ghcr-kt-packages
-  username: GitHub username
-  password: GitHub PAT with read:packages, write:packages
+erp007-server-ssh
+  type: SSH username with private key
+  username: taehyung
+  private key: key that can SSH to the ERP server
 ```
 
-The Jenkins GitHub Organization item should scan `KTHTESTTEST`.
+The current deployed Jenkins credential ID `github-kt-jenkins-pat` is a legacy
+name. It can keep working if the token owner has access to `ERP007`; rename it
+later only after creating the replacement credential and updating Jenkins job
+configs/Jenkinsfiles together.
+
+The active Jenkins GitHub Organization item should scan `ERP007` and include
+only the `main` branch. The old `KTHTESTTEST` organization folder was removed
+from the server Jenkins controller on 2026-06-08 after creating this backup:
+
+```text
+/var/jenkins_home/KTHTESTTEST-jobs-backup-20260608022824.tgz
+```
 
 ## Notes
 
