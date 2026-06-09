@@ -154,7 +154,7 @@ curl http://127.0.0.1/health
 curl http://127.0.0.1/api/users/health
 curl http://127.0.0.1/api/items/health
 curl http://127.0.0.1/api/inventory/health
-curl http://127.0.0.1/api/procurement/health
+curl http://127.0.0.1/api/procurement-orders/health
 curl http://127.0.0.1/api/sales-orders/health
 ```
 
@@ -165,7 +165,7 @@ curl https://api.erp007.xyz/health
 curl https://api.erp007.xyz/api/users/health
 curl https://api.erp007.xyz/api/items/health
 curl https://api.erp007.xyz/api/inventory/health
-curl https://api.erp007.xyz/api/procurement/health
+curl https://api.erp007.xyz/api/procurement-orders/health
 curl https://api.erp007.xyz/api/sales-orders/health
 ```
 

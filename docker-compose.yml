@@ -152,8 +152,8 @@ services:
       - service
       - data
     environment:
-      - SPRINGDOC_SWAGGERUI_CONFIGURL=/api/procurement/v3/api-docs/swagger-config
-      - SPRINGDOC_SWAGGERUI_URL=/api/procurement/v3/api-docs
+      - SPRINGDOC_SWAGGERUI_CONFIGURL=/api/procurement-orders/v3/api-docs/swagger-config
+      - SPRINGDOC_SWAGGERUI_URL=/api/procurement-orders/v3/api-docs
       - OPENAPI_SERVER_URL=https://api.erp007.xyz/api
 
   sales-service:
