@@ -84,6 +84,10 @@ services:
     networks:
       - service
       - data
+    environment:
+      - SPRINGDOC_SWAGGERUI_CONFIGURL=/api/users/v3/api-docs/swagger-config
+      - SPRINGDOC_SWAGGERUI_URL=/api/users/v3/api-docs
+      - OPENAPI_SERVER_URL=https://api.erp007.xyz/api
 
   item-service:
     build:
@@ -102,6 +106,10 @@ services:
     networks:
       - service
       - data
+    environment:
+      - SPRINGDOC_SWAGGERUI_CONFIGURL=/api/items/v3/api-docs/swagger-config
+      - SPRINGDOC_SWAGGERUI_URL=/api/items/v3/api-docs
+      - OPENAPI_SERVER_URL=https://api.erp007.xyz/api
 
   inventory-service:
     build:
@@ -125,6 +133,7 @@ services:
       - SPRINGDOC_SWAGGERUI_CONFIGURL=/api/inventory/v3/api-docs/swagger-config
       - SPRINGDOC_SWAGGERUI_URL=/api/inventory/v3/api-docs
       - SPRING_PROFILES_ACTIVE=local
+
   procurement-service:
     build:
       context: ../procurement-service
@@ -142,6 +151,10 @@ services:
     networks:
       - service
       - data
+    environment:
+      - SPRINGDOC_SWAGGERUI_CONFIGURL=/api/procurement/v3/api-docs/swagger-config
+      - SPRINGDOC_SWAGGERUI_URL=/api/procurement/v3/api-docs
+      - OPENAPI_SERVER_URL=https://api.erp007.xyz/api
 
   sales-service:
     build:
@@ -160,6 +173,10 @@ services:
     networks:
       - service
       - data
+    environment:
+      - SPRINGDOC_SWAGGERUI_CONFIGURL=/api/sales-orders/v3/api-docs/swagger-config
+      - SPRINGDOC_SWAGGERUI_URL=/api/sales-orders/v3/api-docs
+      - OPENAPI_SERVER_URL=https://api.erp007.xyz/api
 
   user-postgres:
     <<: *service-postgres

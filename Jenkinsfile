@@ -62,7 +62,7 @@ pipeline {
                         /api/items/health \
                         /api/inventory/health \
                         /api/procurement/health \
-                        /api/sales/health
+                        /api/sales-orders/health
                     do
                         curl -fsS --retry 10 --retry-delay 3 --max-time 10 "${API_BASE_URL}${path}" >/dev/null
                     done
