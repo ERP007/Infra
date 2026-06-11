@@ -95,6 +95,17 @@ create_service_postgres_env "inventory" "inventory_db" "inventory_user" "change_
 create_service_postgres_env "procurement" "procurement_db" "procurement_user" "change_me_procurement_db_password"
 create_service_postgres_env "sales" "sales_db" "sales_user" "change_me_sales_db_password"
 
+procurement_service_env="$TARGET_DIR/procurement-service.env"
+if [ -e "$procurement_service_env" ]; then
+  set_env_value "$procurement_service_env" "INVENTORY_SERVICE_URL" "http://inventory-service:8080"
+  set_env_value "$procurement_service_env" "ITEM_SERVICE_URL" "http://item-service:8080"
+  set_env_value "$procurement_service_env" "USER_SERVICE_URL" "http://user-service:8080"
+  set_env_value "$procurement_service_env" "KEYCLOAK_ISSUER_URI" "https://auth.erp007.xyz/realms/master"
+  set_env_value "$procurement_service_env" "KEYCLOAK_JWK_SET_URI" "https://auth.erp007.xyz/realms/master/protocol/openid-connect/certs"
+  set_env_value "$procurement_service_env" "SPRING_JPA_HIBERNATE_DDL_AUTO" "none"
+  echo "synced procurement-service.env service urls and jwt settings"
+fi
+
 mkdir -p "$TARGET_DIR/cloudflared"
 
 if [ ! -e "$TARGET_DIR/cloudflared/config.yml" ]; then
