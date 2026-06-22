@@ -214,12 +214,12 @@ curl -H 'Host: erp007.xyz' http://127.0.0.1/
 ## Test Through Cloudflare
 
 ```sh
-curl https://api.erp007.xyz/health
-curl https://api.erp007.xyz/api/users/health
-curl https://api.erp007.xyz/api/items/health
-curl https://api.erp007.xyz/api/inventory/health
-curl https://api.erp007.xyz/api/procurement-orders/health
-curl https://api.erp007.xyz/api/sales-orders/health
+curl https://erp007.xyz/health
+curl https://erp007.xyz/api/users/health
+curl https://erp007.xyz/api/items/health
+curl https://erp007.xyz/api/inventory/health
+curl https://erp007.xyz/api/procurement-orders/health
+curl https://erp007.xyz/api/sales-orders/health
 curl https://erp007.xyz
 curl https://www.erp007.xyz
 curl https://erp007.xyz/api/items/health

@@ -14,7 +14,7 @@ pipeline {
         DEPLOY_DIR = '/home/taehyung/apps/msa-server/infra'
         COMPOSE_FILE = 'docker-compose.yml'
         COMPOSE_PROJECT = 'msa-server'
-        API_BASE_URL = 'https://api.erp007.xyz'
+        API_BASE_URL = 'https://erp007.xyz'
         FRONTEND_URL = 'https://erp007.xyz'
         REGISTRY_HOST = 'registry.erp007.xyz'
         APP_SERVICES = 'frontend gateway-service user-service item-service inventory-service procurement-service sales-service'
