@@ -1,12 +1,16 @@
 # Server MSA Compose
 
-이 문서는 Ubuntu 서버에서 API/backend MSA를 실행하는 절차를 다룬다. Frontend는 Vercel에서 운영하고, 이 서버는 Cloudflare Tunnel 뒤의 backend API와 CI/CD를 담당한다.
+이 문서는 Ubuntu 서버에서 ERP007 backend MSA, Harbor registry, React frontend container 배포를 운영하는 절차를 다룬다.
 
 ## Target URLs
 
 - Web/API base URL: `https://api.erp007.xyz`
+- Frontend URL: `https://erp007.xyz`
+- Harbor URL: `https://registry.erp007.xyz`
 - Jenkins URL: `https://jenkins.erp007.xyz`
 - Local nginx binding on server: `127.0.0.1:80`
+- Frontend container: compose 내부 `frontend:80`, host port 없음
+- Local Harbor binding on server: `127.0.0.1:443`
 - SSH tunnel hostname: `ssh.erp007.xyz`
 
 서버의 Wi-Fi IPv4가 바뀌어도 Cloudflare Tunnel이 outbound 연결을 유지하면 외부 base URL은 그대로 유지된다.
@@ -30,11 +34,15 @@ msa-server/
   inventory-service/
   procurement-service/
   sales-service/
+
+platform/
+  harbor/
 ```
 
 ## Ports
 
-- `127.0.0.1:80`: nginx server entrypoint. Cloudflare Tunnel이 이 compose network의 `nginx:80`으로 연결한다.
+- `127.0.0.1:80`: nginx server entrypoint. Cloudflare Tunnel이 compose network의 `nginx:80`으로 연결한다.
+- `127.0.0.1:443`, `172.17.0.1:443`: Harbor HTTPS endpoint. Docker daemon, Jenkins, Cloudflare Tunnel이 내부 이미지 push/pull에 사용한다.
 - `127.0.0.1:15431`: user-service PostgreSQL debug port.
 - `127.0.0.1:15432`: item-service PostgreSQL debug port.
 - `127.0.0.1:15433`: inventory-service PostgreSQL debug port.
@@ -56,7 +64,7 @@ msa-edge-ci:
   cloudflared, erp-jenkins
 
 msa-app:
-  nginx, gateway-service
+  nginx, frontend, gateway-service
 
 msa-service:
   gateway-service, user-service, item-service, inventory-service, procurement-service, sales-service
@@ -90,21 +98,22 @@ infra/server-secrets/cloudflared/config.yml
 infra/server-secrets/cloudflared/<tunnel-uuid>.json
 ```
 
-현재 서버는 기존 tunnel `erp007-api`를 사용할 수 있다. compose 내부의 cloudflared 컨테이너에서 실행되므로 API ingress service는 `http://nginx:80`, Jenkins ingress service는 `http://erp-jenkins:8080`을 사용한다. Keycloak을 별도 compose로 실행할 때는 Keycloak 컨테이너를 external network `msa-edge-app`에 붙이고 auth ingress service를 `http://keycloak:8080`으로 둔다.
+현재 서버는 기존 tunnel `erp007-api`를 사용할 수 있다. compose 내부의 cloudflared 컨테이너에서 실행되므로 `api.erp007.xyz`, `erp007.xyz`, `www.erp007.xyz` ingress service는 `http://nginx:80`, Jenkins ingress service는 `http://erp-jenkins:8080`을 사용한다. Keycloak을 별도 compose로 실행할 때는 Keycloak 컨테이너를 external network `msa-edge-app`에 붙이고 auth ingress service를 `http://keycloak:8080`으로 둔다. Harbor처럼 host에서 실행되는 endpoint는 `host.docker.internal`을 사용한다.
 
-nginx는 backend API만 분기한다. `/api/**`는 gateway-service로 전달되고, `/internal/**`은 외부 ingress 경로로 열지 않는다. `/`는 frontend 서버가 아니므로 404를 반환한다.
+nginx는 `api.erp007.xyz`에서는 API 전용 server block으로 동작하고, `erp007.xyz`와 `www.erp007.xyz`에서는 frontend 통합 server block으로 동작한다. frontend 도메인의 `/`는 `frontend:80`으로 전달하고, `/api/**`, `/oauth2/**`, `/login/**`, `/error`는 `gateway-service:8080`으로 전달한다. `/internal/**`은 외부 ingress 경로로 열지 않는다.
 
 ## Deploy Model
 
-현재 운영 배포 기준은 GHCR image pull이 아니라 서버 직접 build다.
-운영 기준 compose 파일은 `docker-compose.yml`이다.
+현재 운영 배포 기준은 Harbor image pull이다. 운영 기준 compose 파일은 `docker-compose.yml`이다.
 
-1. 각 서비스 repo에 push되면 해당 서비스 Jenkins job이 돈다.
-2. Jenkins가 서버의 `infra`와 해당 서비스 repo를 `git pull --ff-only`로 갱신한다.
-3. Jenkins가 `infra/docker-compose.yml` 기준으로 해당 서비스만 `docker compose up -d --build --no-deps <service>`로 재빌드/재기동한다.
-4. `infra` repo에 push되면 infra Jenkins job이 전체 compose를 `up -d --build --remove-orphans`로 반영한다.
+1. 각 backend 서비스 repo에 push되면 해당 서비스 Jenkins job이 돈다.
+2. backend Jenkins job은 테스트를 실행하고 `docker/server-service.Dockerfile`로 이미지를 빌드한다.
+3. frontend repo에 push되면 frontend Jenkins job이 Dockerfile build stage 안에서 `npm ci`와 `npm run build`를 실행하고 nginx runtime image를 만든다.
+4. Jenkins가 `registry.erp007.xyz/erp007/<service>:<git-sha>`와 `:main`을 Harbor에 push한다.
+5. Jenkins가 서버에서 `docker compose pull <service>` 후 `docker compose up -d --no-deps <service>`로 해당 서비스만 재기동한다.
+6. `infra` repo에 push되면 infra Jenkins job은 필요한 이미지를 pull한 뒤 전체 compose를 `up -d --remove-orphans`로 반영한다.
 
-`docker-compose.yml`은 `docker/server-service.Dockerfile`로 서비스를 빌드한다. 이 Dockerfile은 운영 배포 속도와 DB 의존성 분리를 위해 `bootJar -x test`만 수행한다. 테스트는 각 서비스 repo의 CI 단계에서 통과시킨 뒤 배포한다.
+`docker-compose.yml`에는 더 이상 app 서비스 `build:`가 없다. 서버가 직접 서비스 이미지를 빌드하지 않으므로 Harbor project, robot account, 서버 Docker login 상태가 선행 조건이다.
 
 서비스 Jenkins job이 `infra`도 pull하는 이유는 compose 파일과 secrets 초기화 스크립트가 `infra` repo에 있기 때문이다. 서비스 배포 시점에 서버의 `infra/docker-compose.yml`이 오래된 상태면, 최신 서비스 코드가 구형 compose로 올라갈 수 있다. `git pull --ff-only`만 수행하므로 서버의 tracked file에 수동 변경이 있으면 덮어쓰지 않고 실패한다.
 
@@ -138,13 +147,56 @@ sales_postgres_data
 
 팀원은 서버 PostgreSQL을 공유하지 않는다. `infra` repo의 `server-secrets/`와 `scripts/init-server-secrets.sh`는 운영 서버/Jenkins 전용이다. 로컬 개발 DB는 각자 로컬 Docker 또는 서비스 repo의 테스트 설정으로 띄운다.
 
+## Storage Prep
+
+Harbor를 같은 서버에 운영하기 전에 root filesystem을 300GB로 확장한다. 현재 서버 디스크는 약 477GB이고 `/` logical volume만 100GB로 잡혀 있다.
+
+```sh
+cd infra
+./scripts/expand-root-lv.sh 300G
+./scripts/prune-docker-build-cache.sh
+```
+
+`expand-root-lv.sh`는 `sudo`가 필요하다. 스냅샷/백업 확인 후 실행한다.
+
+## Harbor
+
+Harbor는 `/home/taehyung/apps/platform/harbor` 아래에 설치한다. Docker client가 `registry.erp007.xyz`를 신뢰해야 하므로 `server-secrets/harbor/registry.erp007.xyz.crt`와 `.key`는 Cloudflare Origin Certificate가 아니라 일반 Docker client가 신뢰 가능한 인증서를 사용한다.
+
+```sh
+cd infra
+./scripts/configure-harbor-host-resolution.sh
+./scripts/setup-harbor.sh
+./scripts/configure-harbor-project.sh
+```
+
+`configure-harbor-project.sh`는 다음 기본 정책을 API로 설정한다.
+
+- private project: `erp007`
+- Jenkins robot account credential: `harbor-robot-erp007`
+- project quota: `120GB`
+- retention: repository별 최신 artifact 10개 유지
+- garbage collection: 주 1회
+
+## Frontend Container
+
+React Vite frontend는 `ERP007/frontend` repo의 Dockerfile로 빌드하고 Harbor에 push한다. 서버 compose는 `registry.erp007.xyz/erp007/frontend:main`을 pull해서 `frontend` 컨테이너로 실행한다.
+
+```sh
+docker compose -f docker-compose.yml -p msa-server pull frontend
+docker compose -f docker-compose.yml -p msa-server up -d --no-deps frontend
+```
+
+frontend 컨테이너는 host port를 열지 않는다. 외부 `erp007.xyz`와 `www.erp007.xyz` 요청은 Cloudflare Tunnel이 `nginx:80`으로 넘기고, nginx가 `/`를 `frontend:80`으로 proxy한다.
+
 ## Run
 
 ```sh
 cd infra
 ./scripts/init-server-secrets.sh
 docker compose -f docker-compose.yml -p msa-server config
-docker compose -f docker-compose.yml -p msa-server up -d --build --remove-orphans
+docker compose -f docker-compose.yml -p msa-server pull frontend gateway-service user-service item-service inventory-service procurement-service sales-service
+docker compose -f docker-compose.yml -p msa-server up -d --remove-orphans
 ```
 
 ## Test On Server
@@ -156,6 +208,7 @@ curl http://127.0.0.1/api/items/health
 curl http://127.0.0.1/api/inventory/health
 curl http://127.0.0.1/api/procurement-orders/health
 curl http://127.0.0.1/api/sales-orders/health
+curl -H 'Host: erp007.xyz' http://127.0.0.1/
 ```
 
 ## Test Through Cloudflare
@@ -167,6 +220,10 @@ curl https://api.erp007.xyz/api/items/health
 curl https://api.erp007.xyz/api/inventory/health
 curl https://api.erp007.xyz/api/procurement-orders/health
 curl https://api.erp007.xyz/api/sales-orders/health
+curl https://erp007.xyz
+curl https://www.erp007.xyz
+curl https://erp007.xyz/api/items/health
+curl https://registry.erp007.xyz
 ```
 
 ## SSH Through Cloudflare

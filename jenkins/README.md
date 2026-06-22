@@ -50,6 +50,11 @@ erp007-server-ssh
   type: SSH username with private key
   username: taehyung
   private key: key that can SSH to the ERP server
+
+harbor-robot-erp007
+  type: Username with password
+  username: robot$erp007+harbor-robot-erp007
+  password: Harbor robot token
 ```
 
 The current deployed Jenkins credential ID `github-kt-jenkins-pat` is a legacy
@@ -68,8 +73,8 @@ from the server Jenkins controller on 2026-06-08 after creating this backup:
 ## Notes
 
 - Jenkins is bound to `127.0.0.1:18080` on the server.
-- Jenkins is attached only to the external `msa-edge-ci` Docker network so Cloudflare Tunnel can route `jenkins.erp007.xyz` to `http://erp-jenkins:8080`.
+- Jenkins is bound to `127.0.0.1:18080` and attached only to the external `msa-edge-ci` Docker network so Cloudflare Tunnel can route `jenkins.erp007.xyz` to `http://erp-jenkins:8080`.
 - The controller includes Docker CLI, Buildx, Compose, Git, and SSH client.
-- `/var/run/docker.sock` is mounted so Jenkins jobs can build images and run compose against the host Docker daemon.
+- `/var/run/docker.sock` is mounted so Jenkins jobs can build frontend/backend images, push them to Harbor, and run compose against the host Docker daemon.
 - `/home/taehyung/apps/msa-server` is mounted at the same path inside Jenkins so compose bind-mount paths resolve correctly on the host.
 - Jenkins is not attached to the app, service, or data networks. Docker socket access still gives Jenkins strong host-level control, so restrict Jenkins users, credentials, and trusted repositories.

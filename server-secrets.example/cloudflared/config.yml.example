@@ -8,8 +8,19 @@ ingress:
   - hostname: auth.erp007.xyz
     service: http://keycloak:8080
 
+  - hostname: registry.erp007.xyz
+    service: https://host.docker.internal:443
+    originRequest:
+      noTLSVerify: true
+
   - hostname: jenkins.erp007.xyz
     service: http://erp-jenkins:8080
+
+  - hostname: erp007.xyz
+    service: http://nginx:80
+
+  - hostname: www.erp007.xyz
+    service: http://nginx:80
 
   - hostname: ssh.erp007.xyz
     service: ssh://host.docker.internal:22

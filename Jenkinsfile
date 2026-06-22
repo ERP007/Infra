@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     parameters {
-        booleanParam(name: 'REBUILD_ALL', defaultValue: false, description: 'Rebuild all service images during infra deploy')
+        booleanParam(name: 'PULL_APP_IMAGES', defaultValue: true, description: 'Pull frontend and backend service images from Harbor before infra deploy')
     }
 
     options {
@@ -15,9 +15,24 @@ pipeline {
         COMPOSE_FILE = 'docker-compose.yml'
         COMPOSE_PROJECT = 'msa-server'
         API_BASE_URL = 'https://api.erp007.xyz'
+        FRONTEND_URL = 'https://erp007.xyz'
+        APP_SERVICES = 'frontend gateway-service user-service item-service inventory-service procurement-service sales-service'
     }
 
     stages {
+        stage('Validate compose') {
+            when {
+                not { branch 'main' }
+            }
+            steps {
+                sh '''
+                    set -eu
+                    ./scripts/init-server-secrets.sh
+                    docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" config --quiet
+                '''
+            }
+        }
+
         stage('Sync infra repo') {
             when { branch 'main' }
             steps {
@@ -42,11 +57,10 @@ pipeline {
                     cd "$DEPLOY_DIR"
                     ./scripts/init-server-secrets.sh
                     docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" config >/tmp/msa-server-compose.yml
-                    if [ "${REBUILD_ALL:-false}" = "true" ]; then
-                        docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" up -d --build --remove-orphans
-                    else
-                        docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" up -d --remove-orphans
+                    if [ "${PULL_APP_IMAGES:-true}" = "true" ]; then
+                        docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" pull $APP_SERVICES
                     fi
+                    docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" up -d --remove-orphans
                 '''
             }
         }
@@ -66,6 +80,7 @@ pipeline {
                     do
                         curl -fsS --retry 10 --retry-delay 3 --max-time 10 "${API_BASE_URL}${path}" >/dev/null
                     done
+                    curl -fsS --retry 10 --retry-delay 3 --max-time 10 "$FRONTEND_URL" >/dev/null
                 '''
             }
         }

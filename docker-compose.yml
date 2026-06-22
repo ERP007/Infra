@@ -35,6 +35,7 @@ services:
     image: nginx:1.27-alpine
     restart: unless-stopped
     depends_on:
+      - frontend
       - gateway-service
     ports:
       - "127.0.0.1:80:80"
@@ -44,11 +45,14 @@ services:
       - edge-app
       - app
 
+  frontend:
+    image: ${FRONTEND_REGISTRY:-registry.erp007.xyz/erp007}/frontend:${FRONTEND_IMAGE_TAG:-main}
+    restart: unless-stopped
+    networks:
+      - app
+
   gateway-service:
-    build:
-      context: ../gateway-service
-      dockerfile: ../infra/docker/server-service.Dockerfile
-    image: erp007/gateway-service:server
+    image: ${BACKEND_REGISTRY:-registry.erp007.xyz/erp007}/gateway-service:${GATEWAY_SERVICE_IMAGE_TAG:-main}
     restart: unless-stopped
     env_file:
       - ./server-secrets/gateway-service.env
@@ -68,10 +72,7 @@ services:
       - service
 
   user-service:
-    build:
-      context: ../user-service
-      dockerfile: ../infra/docker/server-service.Dockerfile
-    image: erp007/user-service:server
+    image: ${BACKEND_REGISTRY:-registry.erp007.xyz/erp007}/user-service:${USER_SERVICE_IMAGE_TAG:-main}
     restart: unless-stopped
     env_file:
       - ./server-secrets/user-service.env
@@ -90,10 +91,7 @@ services:
       - OPENAPI_SERVER_URL=https://api.erp007.xyz/api
 
   item-service:
-    build:
-      context: ../item-service
-      dockerfile: ../infra/docker/server-service.Dockerfile
-    image: erp007/item-service:server
+    image: ${BACKEND_REGISTRY:-registry.erp007.xyz/erp007}/item-service:${ITEM_SERVICE_IMAGE_TAG:-main}
     restart: unless-stopped
     env_file:
       - ./server-secrets/item-service.env
@@ -112,10 +110,7 @@ services:
       - OPENAPI_SERVER_URL=https://api.erp007.xyz/api
 
   inventory-service:
-    build:
-      context: ../inventory-service
-      dockerfile: ../infra/docker/server-service.Dockerfile
-    image: erp007/inventory-service:server
+    image: ${BACKEND_REGISTRY:-registry.erp007.xyz/erp007}/inventory-service:${INVENTORY_SERVICE_IMAGE_TAG:-main}
     restart: unless-stopped
     env_file:
       - ./server-secrets/inventory-service.env
@@ -134,10 +129,7 @@ services:
       - SPRINGDOC_SWAGGERUI_URL=/api/inventory/v3/api-docs
 
   procurement-service:
-    build:
-      context: ../procurement-service
-      dockerfile: ../infra/docker/server-service.Dockerfile
-    image: erp007/procurement-service:server
+    image: ${BACKEND_REGISTRY:-registry.erp007.xyz/erp007}/procurement-service:${PROCUREMENT_SERVICE_IMAGE_TAG:-main}
     restart: unless-stopped
     env_file:
       - ./server-secrets/procurement-service.env
@@ -156,10 +148,7 @@ services:
       - OPENAPI_SERVER_URL=https://api.erp007.xyz/api
 
   sales-service:
-    build:
-      context: ../sales-service
-      dockerfile: ../infra/docker/server-service.Dockerfile
-    image: erp007/sales-service:server
+    image: ${BACKEND_REGISTRY:-registry.erp007.xyz/erp007}/sales-service:${SALES_SERVICE_IMAGE_TAG:-main}
     restart: unless-stopped
     env_file:
       - ./server-secrets/sales-service.env

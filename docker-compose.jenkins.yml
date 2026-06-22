@@ -24,6 +24,7 @@ services:
       - "${DOCKER_GID:-983}"
     extra_hosts:
       - "host.docker.internal:host-gateway"
+      - "registry.erp007.xyz:host-gateway"
     networks:
       - edge-ci
 
