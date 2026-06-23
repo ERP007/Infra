@@ -96,6 +96,7 @@ services:
     env_file:
       - ./server-secrets/item-service.env
       - ./server-secrets/redis.env
+      - ./server-secrets/rabbitmq.env
     depends_on:
       item-postgres:
         condition: service_healthy
@@ -236,6 +237,45 @@ services:
     networks:
       - data
 
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    restart: unless-stopped
+    env_file:
+      - ./server-secrets/rabbitmq.env
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - service
+      - edge-app
+
+  rabbitmq-topology:
+    image: rabbitmq:3.13-management
+    restart: "no"
+    env_file:
+      - ./server-secrets/rabbitmq.env
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    command:
+      - sh
+      - -c
+      - |
+        rabbitmqadmin \
+          --host rabbitmq \
+          --port 15672 \
+          --username "$${RABBITMQ_DEFAULT_USER}" \
+          --password "$${RABBITMQ_DEFAULT_PASS}" \
+          import /etc/rabbitmq/definitions.json
+    volumes:
+      - ./rabbitmq/definitions.json:/etc/rabbitmq/definitions.json:ro
+    networks:
+      - service
+
 networks:
   edge-app:
     name: msa-edge-app
@@ -255,3 +295,4 @@ volumes:
   procurement_postgres_data:
   sales_postgres_data:
   redis_data:
+  rabbitmq_data:

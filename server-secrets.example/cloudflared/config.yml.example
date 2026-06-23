@@ -16,6 +16,9 @@ ingress:
   - hostname: jenkins.erp007.xyz
     service: http://erp-jenkins:8080
 
+  - hostname: rabbit.erp007.xyz
+    service: http://rabbitmq:15672
+
   - hostname: erp007.xyz
     service: http://nginx:80
 

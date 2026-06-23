@@ -1,0 +1,68 @@
+{
+  "exchanges": [
+    {
+      "name": "erp.commands",
+      "vhost": "/",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "erp.events",
+      "vhost": "/",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "erp.dlx",
+      "vhost": "/",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    }
+  ],
+  "queues": [
+    {
+      "name": "inventory.item-master-snapshot.q",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "erp.dlx",
+        "x-dead-letter-routing-key": "inventory.item-master-snapshot.q.dlq"
+      }
+    },
+    {
+      "name": "inventory.item-master-snapshot.q.dlq",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    }
+  ],
+  "bindings": [
+    {
+      "source": "erp.events",
+      "vhost": "/",
+      "destination": "inventory.item-master-snapshot.q",
+      "destination_type": "queue",
+      "routing_key": "item.master.snapshot.changed",
+      "arguments": {}
+    },
+    {
+      "source": "erp.dlx",
+      "vhost": "/",
+      "destination": "inventory.item-master-snapshot.q.dlq",
+      "destination_type": "queue",
+      "routing_key": "inventory.item-master-snapshot.q.dlq",
+      "arguments": {}
+    }
+  ]
+}
