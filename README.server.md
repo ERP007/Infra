@@ -8,6 +8,7 @@
 - Frontend URL: `https://erp007.xyz`
 - Harbor URL: `https://registry.erp007.xyz`
 - Jenkins URL: `https://jenkins.erp007.xyz`
+- RabbitMQ Management URL: `https://rabbit.erp007.xyz`
 - Local nginx binding on server: `127.0.0.1:80`
 - Frontend container: compose 내부 `frontend:80`, host port 없음
 - Local Harbor binding on server: `127.0.0.1:443`
@@ -49,6 +50,7 @@ platform/
 - `127.0.0.1:15434`: procurement-service PostgreSQL debug port.
 - `127.0.0.1:15435`: sales-service PostgreSQL debug port.
 - `127.0.0.1:16379`: Redis debug port.
+- RabbitMQ AMQP `5672`와 Management UI `15672`는 host port로 열지 않는다. 서비스 컨테이너는 `rabbitmq:5672`, Cloudflare Tunnel은 `rabbitmq:15672`로 접근한다.
 
 서버 compose는 host의 외부 인터페이스에 `80`, PostgreSQL, Redis port를 직접 열지 않는다.
 
@@ -58,7 +60,7 @@ platform/
 
 ```text
 msa-edge-app:
-  cloudflared, nginx
+  cloudflared, nginx, rabbitmq
 
 msa-edge-ci:
   cloudflared, erp-jenkins
@@ -67,7 +69,7 @@ msa-app:
   nginx, frontend, gateway-service
 
 msa-service:
-  gateway-service, user-service, item-service, inventory-service, procurement-service, sales-service
+  gateway-service, user-service, item-service, inventory-service, procurement-service, sales-service, rabbitmq
 
 msa-data:
   user-service, user-postgres
@@ -98,7 +100,7 @@ infra/server-secrets/cloudflared/config.yml
 infra/server-secrets/cloudflared/<tunnel-uuid>.json
 ```
 
-현재 서버는 기존 tunnel `erp007-api`를 사용할 수 있다. compose 내부의 cloudflared 컨테이너에서 실행되므로 `api.erp007.xyz`, `erp007.xyz`, `www.erp007.xyz` ingress service는 `http://nginx:80`, Jenkins ingress service는 `http://erp-jenkins:8080`을 사용한다. Keycloak을 별도 compose로 실행할 때는 Keycloak 컨테이너를 external network `msa-edge-app`에 붙이고 auth ingress service를 `http://keycloak:8080`으로 둔다. Harbor처럼 host에서 실행되는 endpoint는 `host.docker.internal`을 사용한다.
+현재 서버는 기존 tunnel `erp007-api`를 사용할 수 있다. compose 내부의 cloudflared 컨테이너에서 실행되므로 `api.erp007.xyz`, `erp007.xyz`, `www.erp007.xyz` ingress service는 `http://nginx:80`, RabbitMQ Management ingress service는 `http://rabbitmq:15672`, Jenkins ingress service는 `http://erp-jenkins:8080`을 사용한다. Keycloak을 별도 compose로 실행할 때는 Keycloak 컨테이너를 external network `msa-edge-app`에 붙이고 auth ingress service를 `http://keycloak:8080`으로 둔다. Harbor처럼 host에서 실행되는 endpoint는 `host.docker.internal`을 사용한다.
 
 nginx는 `api.erp007.xyz`에서는 API 전용 server block으로 동작하고, `erp007.xyz`와 `www.erp007.xyz`에서는 frontend 통합 server block으로 동작한다. frontend 도메인의 `/`는 `frontend:80`으로 전달하고, `/api/**`, `/oauth2/**`, `/login/**`, `/error`는 `gateway-service:8080`으로 전달한다. `/internal/**`은 외부 ingress 경로로 열지 않는다.
 
@@ -189,13 +191,52 @@ docker compose -f docker-compose.yml -p msa-server up -d --no-deps frontend
 
 frontend 컨테이너는 host port를 열지 않는다. 외부 `erp007.xyz`와 `www.erp007.xyz` 요청은 Cloudflare Tunnel이 `nginx:80`으로 넘기고, nginx가 `/`를 `frontend:80`으로 proxy한다.
 
+## RabbitMQ
+
+RabbitMQ는 backend 서비스용 AMQP broker와 운영 확인용 Management UI를 제공한다.
+
+```text
+AMQP internal URL: rabbitmq:5672
+Management URL: https://rabbit.erp007.xyz
+Management internal URL: http://rabbitmq:15672
+```
+
+RabbitMQ는 host port를 열지 않는다. `5672`는 Docker network 내부 서비스 통신에만 사용하고, `15672`는 Cloudflare Tunnel이 `rabbit.erp007.xyz`로만 라우팅한다.
+
+Cloudflare Access에서 `rabbit.erp007.xyz` 접근 제한을 반드시 설정한다. Access 적용 전에는 `server-secrets/rabbitmq.env`의 `RABBITMQ_DEFAULT_PASS`를 강한 값으로 바꾼다.
+
+RabbitMQ topology는 `rabbitmq/definitions.json`에서 관리하고, `rabbitmq-topology` one-shot 컨테이너가 Management API로 import한다. `management.load_definitions`를 직접 켜면 RabbitMQ가 기본 vhost/user 생성을 건너뛰므로, 비밀번호를 `server-secrets/rabbitmq.env`로 유지하려면 RabbitMQ 부팅 후 import 방식이 더 안전하다.
+
+현재 기본 topology는 다음과 같다.
+
+```text
+topic exchange: erp.events
+topic exchange: erp.commands
+direct exchange: erp.dlx
+
+erp.events + item.master.snapshot.changed
+  -> inventory.item-master-snapshot.q
+
+inventory.item-master-snapshot.q dead-letter
+  -> erp.dlx + inventory.item-master-snapshot.q.dlq
+  -> inventory.item-master-snapshot.q.dlq
+```
+
+`item-service`는 `server-secrets/rabbitmq.env`를 함께 읽는다. 운영 서버에서는 `RABBITMQ_DEFAULT_PASS`와 `SPRING_RABBITMQ_PASSWORD`를 같은 강한 값으로 맞춘다.
+
+```sh
+docker compose -f docker-compose.yml -p msa-server pull rabbitmq
+docker compose -f docker-compose.yml -p msa-server up -d rabbitmq rabbitmq-topology cloudflared
+docker compose -f docker-compose.yml -p msa-server exec rabbitmq rabbitmq-diagnostics -q ping
+```
+
 ## Run
 
 ```sh
 cd infra
 ./scripts/init-server-secrets.sh
 docker compose -f docker-compose.yml -p msa-server config
-docker compose -f docker-compose.yml -p msa-server pull frontend gateway-service user-service item-service inventory-service procurement-service sales-service
+docker compose -f docker-compose.yml -p msa-server pull rabbitmq frontend gateway-service user-service item-service inventory-service procurement-service sales-service
 docker compose -f docker-compose.yml -p msa-server up -d --remove-orphans
 ```
 
@@ -224,6 +265,7 @@ curl https://erp007.xyz
 curl https://www.erp007.xyz
 curl https://erp007.xyz/api/items/health
 curl https://registry.erp007.xyz
+curl https://rabbit.erp007.xyz
 ```
 
 ## SSH Through Cloudflare
