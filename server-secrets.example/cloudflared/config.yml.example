@@ -2,9 +2,6 @@ tunnel: replace_with_tunnel_uuid
 credentials-file: /etc/cloudflared/replace_with_tunnel_uuid.json
 
 ingress:
-  - hostname: api.erp007.xyz
-    service: http://nginx:80
-
   - hostname: auth.erp007.xyz
     service: http://keycloak:8080
 

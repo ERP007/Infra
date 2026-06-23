@@ -88,7 +88,7 @@ services:
     environment:
       - SPRINGDOC_SWAGGERUI_CONFIGURL=/api/users/v3/api-docs/swagger-config
       - SPRINGDOC_SWAGGERUI_URL=/api/users/v3/api-docs
-      - OPENAPI_SERVER_URL=https://api.erp007.xyz/api
+      - OPENAPI_SERVER_URL=https://erp007.xyz/api
 
   item-service:
     image: ${BACKEND_REGISTRY:-registry.erp007.xyz/erp007}/item-service:${ITEM_SERVICE_IMAGE_TAG:-main}
@@ -108,7 +108,7 @@ services:
     environment:
       - SPRINGDOC_SWAGGERUI_CONFIGURL=/api/items/v3/api-docs/swagger-config
       - SPRINGDOC_SWAGGERUI_URL=/api/items/v3/api-docs
-      - OPENAPI_SERVER_URL=https://api.erp007.xyz/api
+      - OPENAPI_SERVER_URL=https://erp007.xyz/api
 
   inventory-service:
     image: ${BACKEND_REGISTRY:-registry.erp007.xyz/erp007}/inventory-service:${INVENTORY_SERVICE_IMAGE_TAG:-main}
@@ -116,16 +116,19 @@ services:
     env_file:
       - ./server-secrets/inventory-service.env
       - ./server-secrets/redis.env
+      - ./server-secrets/rabbitmq.env
     depends_on:
       inventory-postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     networks:
       - service
       - data
     environment:
-      - OPENAPI_SERVER_URL=https://api.erp007.xyz/api
+      - OPENAPI_SERVER_URL=https://erp007.xyz/api
       - SPRINGDOC_SWAGGERUI_CONFIGURL=/api/inventory/v3/api-docs/swagger-config
       - SPRINGDOC_SWAGGERUI_URL=/api/inventory/v3/api-docs
 
@@ -147,7 +150,7 @@ services:
     environment:
       - SPRINGDOC_SWAGGERUI_CONFIGURL=/api/procurement-orders/v3/api-docs/swagger-config
       - SPRINGDOC_SWAGGERUI_URL=/api/procurement-orders/v3/api-docs
-      - OPENAPI_SERVER_URL=https://api.erp007.xyz/api
+      - OPENAPI_SERVER_URL=https://erp007.xyz/api
 
   sales-service:
     image: ${BACKEND_REGISTRY:-registry.erp007.xyz/erp007}/sales-service:${SALES_SERVICE_IMAGE_TAG:-main}
@@ -167,7 +170,7 @@ services:
     environment:
       - SPRINGDOC_SWAGGERUI_CONFIGURL=/api/sales-orders/v3/api-docs/swagger-config
       - SPRINGDOC_SWAGGERUI_URL=/api/sales-orders/v3/api-docs
-      - OPENAPI_SERVER_URL=https://api.erp007.xyz/api
+      - OPENAPI_SERVER_URL=https://erp007.xyz/api
 
   user-postgres:
     <<: *service-postgres

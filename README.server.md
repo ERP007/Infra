@@ -4,7 +4,7 @@
 
 ## Target URLs
 
-- Web/API base URL: `https://api.erp007.xyz`
+- Web/API base URL: `https://erp007.xyz`
 - Frontend URL: `https://erp007.xyz`
 - Harbor URL: `https://registry.erp007.xyz`
 - Jenkins URL: `https://jenkins.erp007.xyz`
@@ -100,9 +100,9 @@ infra/server-secrets/cloudflared/config.yml
 infra/server-secrets/cloudflared/<tunnel-uuid>.json
 ```
 
-현재 서버는 기존 tunnel `erp007-api`를 사용할 수 있다. compose 내부의 cloudflared 컨테이너에서 실행되므로 `api.erp007.xyz`, `erp007.xyz`, `www.erp007.xyz` ingress service는 `http://nginx:80`, RabbitMQ Management ingress service는 `http://rabbitmq:15672`, Jenkins ingress service는 `http://erp-jenkins:8080`을 사용한다. Keycloak을 별도 compose로 실행할 때는 Keycloak 컨테이너를 external network `msa-edge-app`에 붙이고 auth ingress service를 `http://keycloak:8080`으로 둔다. Harbor처럼 host에서 실행되는 endpoint는 `host.docker.internal`을 사용한다.
+현재 서버는 기존 tunnel `erp007-api`를 사용할 수 있다. compose 내부의 cloudflared 컨테이너에서 실행되므로 `erp007.xyz`, `www.erp007.xyz` ingress service는 `http://nginx:80`, RabbitMQ Management ingress service는 `http://rabbitmq:15672`, Jenkins ingress service는 `http://erp-jenkins:8080`을 사용한다. Keycloak을 별도 compose로 실행할 때는 Keycloak 컨테이너를 external network `msa-edge-app`에 붙이고 auth ingress service를 `http://keycloak:8080`으로 둔다. Harbor처럼 host에서 실행되는 endpoint는 `host.docker.internal`을 사용한다.
 
-nginx는 `api.erp007.xyz`에서는 API 전용 server block으로 동작하고, `erp007.xyz`와 `www.erp007.xyz`에서는 frontend 통합 server block으로 동작한다. frontend 도메인의 `/`는 `frontend:80`으로 전달하고, `/api/**`, `/oauth2/**`, `/login/**`, `/error`는 `gateway-service:8080`으로 전달한다. `/internal/**`은 외부 ingress 경로로 열지 않는다.
+nginx는 `erp007.xyz`와 `www.erp007.xyz`에서 frontend 통합 server block으로 동작한다. frontend 도메인의 `/`는 `frontend:80`으로 전달하고, `/api/**`, `/oauth2/**`, `/login/**`, `/error`는 `gateway-service:8080`으로 전달한다. `/internal/**`은 외부 ingress 경로로 열지 않는다.
 
 ## Deploy Model
 
