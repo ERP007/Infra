@@ -56,6 +56,7 @@ services:
     restart: unless-stopped
     env_file:
       - ./server-secrets/gateway-service.env
+      - ./server-secrets/redis.env
     depends_on:
       user-service:
         condition: service_started
