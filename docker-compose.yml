@@ -68,6 +68,8 @@ services:
         condition: service_started
       sales-service:
         condition: service_started
+      redis:
+        condition: service_healthy
     networks:
       - app
       - service
@@ -242,6 +244,7 @@ services:
       retries: 10
     networks:
       - data
+      - service
 
   rabbitmq:
     image: rabbitmq:3.13-management
