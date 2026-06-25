@@ -135,6 +135,7 @@ services:
     env_file:
       - ./server-secrets/procurement-service.env
       - ./server-secrets/redis.env
+      - ./server-secrets/rabbitmq.env
     depends_on:
       procurement-postgres:
         condition: service_healthy
@@ -154,6 +155,7 @@ services:
     env_file:
       - ./server-secrets/sales-service.env
       - ./server-secrets/redis.env
+      - ./server-secrets/rabbitmq.env
     depends_on:
       sales-postgres:
         condition: service_healthy

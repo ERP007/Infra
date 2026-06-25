@@ -222,7 +222,7 @@ inventory.item-master-snapshot.q dead-letter
   -> inventory.item-master-snapshot.q.dlq
 ```
 
-`item-service`는 `server-secrets/rabbitmq.env`를 함께 읽는다. 운영 서버에서는 `RABBITMQ_DEFAULT_PASS`와 `SPRING_RABBITMQ_PASSWORD`를 같은 강한 값으로 맞춘다.
+AMQP를 사용하는 서비스(`item-service`, `procurement-service`, `sales-service`)는 `server-secrets/rabbitmq.env`를 함께 읽는다. 운영 서버에서는 `RABBITMQ_DEFAULT_PASS`와 `SPRING_RABBITMQ_PASSWORD`를 같은 강한 값으로 맞춘다.
 
 ```sh
 docker compose -f docker-compose.yml -p msa-server pull rabbitmq
